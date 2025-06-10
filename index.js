@@ -75,8 +75,7 @@ const typeDefs = gql`
     books: [Book!]!
     book(id: ID!): Book
     availableBooks: [Book!]!
-    myBorrowings: [Borrowing!]!
-    overdueBooks: [Borrowing!]!
+    searchBooks(query: String!): [Book!]!
   }
 
   type Mutation {
@@ -123,6 +122,20 @@ const bookQueries = {
         'Failed to fetch available books',
         'FETCH_AVAILABLE_BOOKS_ERROR'
       );
+    }
+  },
+
+  searchBooks: async (_, { query }) => {
+    try {
+      const books = await Book.find({
+        $or: [
+          { title: { $regex: query, $options: 'i' } },
+          { author: { $regex: query, $options: 'i' } },
+        ],
+      });
+      return books;
+    } catch (error) {
+      throw new AppError('Failed to search books', 'SEARCH_BOOKS_ERROR');
     }
   },
 };
