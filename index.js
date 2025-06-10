@@ -58,7 +58,7 @@ const typeDefs = gql`
   type Query {
     me: Member
     getMembers: [Member!]!
-    member(id: ID!): Member
+    getMember(id: ID!): Member
     getMemberByEmail(email: String!): Member
     books: [Book!]!
     book(id: ID!): Book
@@ -96,7 +96,7 @@ const memberQueries = {
   getMembers: async () => {
     return await Member.find();
   },
-  member: async (_, { id }) => {
+  getMember: async (_, { id }) => {
     const member = await Member.findById(id);
     return member;
   },
