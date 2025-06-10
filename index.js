@@ -92,7 +92,8 @@ const bookQueries = {
 
 const memberQueries = {
   me: async (_, __, context) => {
-    return await Member.findById(context.userId);
+    const member = await Member.findById(context.userId);
+    return member;
   },
   getMembers: async () => {
     return await Member.find();
@@ -207,18 +208,34 @@ const bookMutations = {
     }
 
     // Create borrowing record
-    const borrowing = await Borrowing.create({
+    const borrowing = await Borrowing.findOne({
+      member: context.userId,
+      book: bookId,
+      returned: false,
+    });
+
+    if (borrowing) {
+      throw new Error('Member has already borrowed this book');
+    }
+
+    // Create borrowing record
+    const newBorrowing = await Borrowing.create({
       book: bookId,
       member: context.userId,
       borrowDate: new Date().toISOString(),
       returned: false,
     });
 
-    // Decrease available copies
+    // Update book copies
     book.availableCopies -= 1;
     await book.save();
 
-    return borrowing;
+    // Populate references
+    const populatedBorrowing = await Borrowing.findById(newBorrowing._id)
+      .populate('book')
+      .populate('member');
+
+    return populatedBorrowing;
   },
 
   returnBook: async (_, { borrowingId }, context) => {
@@ -259,6 +276,11 @@ const resolvers = {
   Mutation: {
     ...memberMutations,
     ...bookMutations,
+  },
+  Member: {
+    borrowings: async (parent) => {
+      return await Borrowing.find({ member: parent._id }).populate('book');
+    },
   },
 };
 
