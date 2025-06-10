@@ -18,13 +18,21 @@ class AppError extends Error {
 }
 
 const typeDefs = gql`
+  enum Category {
+    FICTION
+    NON_FICTION
+    SCIENCE
+    TECHNOLOGY
+    HISTORY
+  }
+
   type Book {
     id: ID!
     title: String!
     author: String!
     isbn: String!
     availableCopies: Int!
-    category: String
+    category: Category
     totalCopies: Int!
   }
 
@@ -76,6 +84,7 @@ const typeDefs = gql`
     book(id: ID!): Book
     availableBooks: [Book!]!
     searchBooks(query: String!): [Book!]!
+    filteredBooks(category: Category): [Book!]!
   }
 
   type Mutation {
@@ -136,6 +145,18 @@ const bookQueries = {
       return books;
     } catch (error) {
       throw new AppError('Failed to search books', 'SEARCH_BOOKS_ERROR');
+    }
+  },
+
+  filteredBooks: async (_, { category }) => {
+    try {
+      const books = await Book.find({ category });
+      return books;
+    } catch (error) {
+      throw new AppError(
+        'Failed to fetch filtered books',
+        'FETCH_FILTERED_BOOKS_ERROR'
+      );
     }
   },
 };
