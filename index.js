@@ -6,7 +6,8 @@ const Book = require('./models/book');
 const Borrowing = require('./models/borrowing');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const secret = 'mySecret';
+const secret = '87654321';
+const cors = require('cors');
 
 const typeDefs = gql`
   type Book {
@@ -107,7 +108,8 @@ const memberQueries = {
 };
 
 const memberMutations = {
-  registerMember: async (_, { name, email, password }) => {
+  registerMember: async (_, { input }) => {
+    const { name, email, password } = input;
     // Check if member already exists
     const existingMember = await Member.findOne({ email });
     if (existingMember) {
@@ -162,25 +164,19 @@ const memberMutations = {
 };
 
 const bookMutations = {
-  addBook: async (_, { title, author, isbn, copies, category }, context) => {
+  addBook: async (_, { input }, context) => {
     if (!context.userId) {
       throw new Error('Not authenticated');
     }
 
     // Check if book already exists
-    const existingBook = await Book.findOne({ isbn });
+    const existingBook = await Book.findOne({ isbn: input.isbn });
     if (existingBook) {
       throw new Error('Book with this ISBN already exists');
     }
 
     // Create new book
-    const book = await Book.create({
-      title,
-      author,
-      isbn,
-      availableCopies: copies,
-      category,
-    });
+    const book = await Book.create(input);
 
     return book;
   },
@@ -273,23 +269,30 @@ async function startApolloServer() {
     resolvers,
     context: ({ req }) => {
       const token = req.headers.authorization || '';
+      let userId = null;
 
-      let user = null;
-
-      if (token) {
-        const tokenAfterRemovingBearer = token.split(' ')[1];
-        const decoded = jwt.verify(tokenAfterRemovingBearer, 'MySecret');
-        user = decoded;
+      if (token && token.startsWith('Bearer ')) {
+        try {
+          const decoded = jwt.verify(token.split(' ')[1], secret);
+          userId = decoded.userId;
+        } catch (err) {
+          console.error('Invalid token');
+        }
       }
 
-      return user;
+      return { userId };
     },
+
+    introspection: true,
+    playground: true,
   });
 
   await mongoose.connect('mongodb://localhost:27017/library');
   await server.start();
 
   server.applyMiddleware({ app });
+
+  app.use(cors());
 
   app.listen({ port: 4000 }, () => {
     console.log('GraphQL server is listening on port 4000');
